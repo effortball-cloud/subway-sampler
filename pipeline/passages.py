@@ -8,8 +8,8 @@
   python pipeline/passages.py --finalize       # 아침 수집 직후: 만들고 원본을 .gz 로 묶기
 
 생각:
-- 위치 API는 열차마다 '마지막 사건'(진입·도착·출발·전역출발)과 그 사건 시각(recptnDt)을 준다.
-  4분마다 찍어도 사건 시각은 초 단위로 정확하다.
+- 위치 API는 열차마다 지금 상태(진입·도착·출발·전역출발)와 시각(recptnDt)을 준다.
+  실제 응답에서 한 노선 열차들의 시각이 모두 같았다(묶음 갱신 시각일 수 있음) → 보통 배차는 span_avg로 흔들림을 줄인다.
 - 같은 열차의 두 사건 사이에 있는 역은 위치를 직선으로 이어 지나간 시각을 추정한다(보간).
 - 역 순서는 역 ID 끝자리로 본다(같은 구간 번호 안에서 6칸 이내만 잇는다 → 지선·순환 끝은 잇지 않음).
 - 급행은 급행이 실제로 선 역(그날 급행이 도착·출발한 역)에서만 지나간 것으로 센다.
@@ -199,10 +199,27 @@ def build_day(records, date, settings):
     }
 
 
+def dedup_secs(pass_list, min_gap=20):
+    """[[초, ...], ...] → 정렬한 통과 시각. 앞 열차와 20초 미만이면 같은 열차 중복으로 보고 버림"""
+    out = []
+    for sec in sorted(p[0] for p in pass_list):
+        if not out or sec - out[-1] >= min_gap:
+            out.append(sec)
+    return out
+
+
 def headways(pass_list, min_gap=20):
-    """[[초, ...], ...] → 연속 열차 사이 간격(초). 20초 미만은 같은 열차 중복으로 보고 버림"""
-    secs = sorted(p[0] for p in pass_list)
-    return [b - a for a, b in zip(secs, secs[1:]) if b - a >= min_gap]
+    """연속 열차 사이 간격(초)"""
+    secs = dedup_secs(pass_list, min_gap)
+    return [b - a for a, b in zip(secs, secs[1:])]
+
+
+def span_avg(pass_list, k=2):
+    """k칸 평균 간격: (t[i+k] - t[i]) / k.
+    응답 시각이 열차별 사건 시각이 아니라 묶음 갱신 시각이면 4분 간격 보간에 ±30초쯤 흔들림이 생긴다.
+    두 칸씩 묶어 평균하면 흔들림이 상쇄돼 '보통 배차'가 참값에 가까워진다(가짜 운행 실험: 150초 → 156초)."""
+    secs = dedup_secs(pass_list)
+    return [(secs[i + k] - secs[i]) / k for i in range(len(secs) - k)]
 
 
 def finalize_raw(date):

@@ -100,7 +100,7 @@ def build(ym, settings):
             stid, _ = key.split("|")
             _, sid, line = meta_by.get(stid, ("", "", ""))
             pl = per_line.setdefault(line, {"hw": [], "exp": [], "tph": []})
-            pl["hw"].extend(s["_hw"])
+            pl["hw"].extend(s["_h2"])  # 노선 보통 배차도 두 칸 평균 간격으로
             if s["급행_비율"] > 0:
                 pl["exp"].append(s["급행_비율"])  # 급행이 서는 역만(서지 않는 역까지 넣으면 비율이 낮게 나옴)
             pl["tph"].append(s["시간당_열차"])

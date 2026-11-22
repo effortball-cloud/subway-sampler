@@ -7,7 +7,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common as C  # noqa: E402
-from passages import headways  # noqa: E402
+from passages import headways, span_avg  # noqa: E402
 
 CIRCLE = {"1002": {"0": "내선순환", "1": "외선순환"}}
 
@@ -73,9 +73,11 @@ def station_dir_stats(days, window_hours=2.0):
     acc = {}
     for d in days:
         for key, plist in d["passages"].items():
-            a = acc.setdefault(key, {"hw": [], "counts": [], "exp": [], "days": 0, "terms": {}, "maxgap": (0, None)})
+            a = acc.setdefault(key, {"hw": [], "h2": [], "counts": [], "exp": [], "days": 0, "terms": {},
+                                     "maxgap": (0, None)})
             hw = headways(plist)
             a["hw"].extend(hw)
+            a["h2"].extend(span_avg(plist, 2))
             a["counts"].append(len(plist))
             a["exp"].extend(p[1] for p in plist)
             a["days"] += 1
@@ -88,7 +90,8 @@ def station_dir_stats(days, window_hours=2.0):
         if not a["hw"]:
             continue
         out[key] = {
-            "배차_중간값_초": round(statistics.median(a["hw"])),
+            # 보통 배차 = 두 칸 평균 간격의 중간값(흔들림에 강함), 90% = 실제 간격(긴 기다림은 그대로 드러나게)
+            "배차_중간값_초": round(statistics.median(a["h2"] or a["hw"])),
             "배차_90_초": round(pct(a["hw"], 0.9)),
             "시간당_열차": round(statistics.mean(a["counts"]) / window_hours, 1),
             "급행_비율": round(sum(a["exp"]) / len(a["exp"]), 3) if a["exp"] else 0,
@@ -97,6 +100,7 @@ def station_dir_stats(days, window_hours=2.0):
             "가장긴_간격_날": a["maxgap"][1],
             "_terms": a["terms"],
             "_hw": a["hw"],
+            "_h2": a["h2"] or a["hw"],
         }
     return out
 

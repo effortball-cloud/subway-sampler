@@ -1,0 +1,34 @@
+{
+ "errorMessage": {
+  "status": 200,
+  "code": "INFO-000",
+  "message": "정상 처리되었습니다.",
+  "link": "",
+  "developerMessage": "",
+  "total": 1
+ },
+ "realtimePositionList": [
+  {
+   "beginRow": null,
+   "endRow": null,
+   "curPage": null,
+   "pageRow": null,
+   "totalCount": 1,
+   "rowNum": 1,
+   "selectedCount": 1,
+   "subwayId": "1006",
+   "subwayNm": "6호선",
+   "statnId": "1006000648",
+   "statnNm": "신내",
+   "trainNo": "6237",
+   "lastRecptnDt": "20261123",
+   "recptnDt": "2026-11-23 01:19:12",
+   "updnLine": "1",
+   "statnTid": "1006000648",
+   "statnTnm": "신내",
+   "trainSttus": "3",
+   "directAt": "0",
+   "lstcarAt": "0"
+  }
+ ]
+}

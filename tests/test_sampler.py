@@ -80,6 +80,18 @@ class TestPassages(unittest.TestCase):
         for sec, _exp, _d in day["passages"]["1002000208|1"]:
             self.assertLessEqual(min(abs(sec - t) for t in truth), 20)
 
+    def test_batch_time_robust(self):
+        """응답 시각이 묶음 갱신 시각(=스냅숏 시각)이어도 보통 배차가 참값 근처"""
+        for hw in (150, 210):
+            recs = fake_line(DATE, "1002", "2호선", hw)
+            for r in recs:
+                for row in r["rows"]:
+                    row[6] = r["t"][:19].replace("T", " ")
+            day = P.build_day(recs, DATE, SETTINGS)
+            s = agg.station_dir_stats([day])["1002000208|1"]
+            self.assertAlmostEqual(s["배차_중간값_초"], hw, delta=10)
+            self.assertGreaterEqual(s["배차_90_초"], hw)  # 90%는 줄여 말하지 않음
+
     def test_express_skips(self):
         recs = fake_line(DATE, "1009", "9호선", 180, express_every=3, skip=(204, 205, 206))
         day = P.build_day(recs, DATE, SETTINGS)
