@@ -1,0 +1,49 @@
+# 평일 아침 지하철 위치 수집 → 하루 통과 시각 → A·B용 파일 → 저장소에 커밋
+# 켜는 법: Secrets 에 SEOUL_SUBWAY_KEY(실시간 지하철 키)만 넣으면 된다. 역 좌표는 config/station_master.json 에 들어 있음.
+# 공개 저장소면 Actions 시간이 무료(하루 약 140분 × 평일 22일). 비공개면 월 2,000분 무료라 모자람.
+name: morning-sample
+on:
+  schedule:
+    - cron: "40 21 * * 0-4"   # 평일 06:40 KST에 시작 → 06:58부터 4분마다 수집(예약 지연 18분까지 버팀)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "once = 지금 1번(시험용, 14회) / morning = 평일 아침 수집"
+        default: once
+        required: true
+concurrency:
+  group: morning-sample
+  cancel-in-progress: false
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 170
+    permissions:
+      contents: write
+    env:
+      SEOUL_SUBWAY_KEY: ${{ secrets.SEOUL_SUBWAY_KEY }}
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: collect (06:58~09:02)
+        run: python pipeline/collect.py --${{ github.event.inputs.mode || 'morning' }}
+      - name: passages
+        if: always()
+        run: python pipeline/passages.py --finalize
+      - name: export A (출근길 실측)
+        if: always()
+        run: python pipeline/export_villa.py
+      - name: export B (이달의 지하철 숫자)
+        if: always()
+        run: python pipeline/export_life.py
+      - name: commit
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data export
+          git commit -m "아침 수집 $(TZ=Asia/Seoul date +%F)" || echo "바뀐 것 없음"
+          git push
