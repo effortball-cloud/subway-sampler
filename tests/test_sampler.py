@@ -201,7 +201,7 @@ class TestNames(unittest.TestCase):
 
 
 class TestRealEvening(unittest.TestCase):
-    """11-23 22:57~23:17 실제 응답(14개 노선 x 6번). 역 번호 순서·이름·보간 오차를 실데이터로 지킨다."""
+    """11-23 22:57~23:21 실제 응답(14개 노선 x 7번). 역 번호 순서·이름·보간 오차를 실데이터로 지킨다."""
 
     @classmethod
     def setUpClass(cls):
