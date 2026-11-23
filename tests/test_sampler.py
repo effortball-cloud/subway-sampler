@@ -183,6 +183,13 @@ class TestNames(unittest.TestCase):
         self.assertEqual(C.norm_name("서울역"), "서울")
         self.assertEqual(C.norm_name("총신대입구(이수)"), "총신대입구")
         self.assertEqual(C.norm_name("역삼"), "역삼")
+        # 11-23 저녁 실제 응답에서 나온 이름
+        self.assertEqual(C.norm_name("성수종착"), "성수")
+        self.assertEqual(C.norm_name("4.19 민주묘지"), "4.19민주묘지")
+        self.assertEqual(C.norm_name("응암(하선-종착)"), "응암")
+        self.assertEqual(C.norm_name("성수지선"), "성수")
+        self.assertEqual(agg.direction_label("1002", "0", {"성수지선": 3}, "1002002112"), "성수행")
+        self.assertEqual(agg.direction_label("1002", "0", {"성수": 3}, "1002000222"), "내선순환")
 
     def test_lookup_same_name_far_apart(self):
         import stations as ST
@@ -191,6 +198,59 @@ class TestNames(unittest.TestCase):
         self.assertEqual(ST.lookup(idx, "양평", "5호선"), (37.5258, 126.8866))
         self.assertEqual(ST.lookup(idx, "양평", "경의중앙선"), (37.4927, 127.4918))
         self.assertAlmostEqual(ST.lookup(idx, "교대", "2호선")[0], 37.4936, places=3)
+
+
+class TestRealEvening(unittest.TestCase):
+    """11-23 22:57~23:17 실제 응답(14개 노선 x 6번). 역 번호 순서·이름·보간 오차를 실데이터로 지킨다."""
+
+    @classmethod
+    def setUpClass(cls):
+        import gzip
+        import json
+        path = os.path.join(os.path.dirname(__file__), "fixtures", "real_evening_2026-11-23.jsonl.gz")
+        with gzip.open(path, "rt", encoding="utf-8") as f:
+            cls.recs = [json.loads(line) for line in f]
+        cls.evs, cls.lines, _ = P.events_of(cls.recs, "2026-11-23")
+
+    def test_station_ids_run_along_the_line(self):
+        moves = {}
+        for (sid, _tr, updn), run in P.runs_of(self.evs):
+            for a, b in zip(run, run[1:]):
+                d = P.seg_idx(b["stid"])[1] - P.seg_idx(a["stid"])[1]
+                if d:
+                    m = moves.setdefault((self.lines[sid], updn), [0, 0])
+                    m[0 if d > 0 else 1] += 1
+        for (line, updn), (up, down) in moves.items():
+            if line == "경의중앙선" or up + down < 5:
+                continue  # 경의중앙선은 경의·중앙 구간 번호가 반대로 매겨져 방향이 섞인다(열차마다 따로 보간하니 괜찮음)
+            self.assertGreaterEqual(max(up, down) / (up + down), 0.9, (line, updn, up, down))
+
+    def test_every_station_has_coords(self):
+        import stations as ST
+        idx = ST.coord_index()
+        miss = {(e["stnm"], self.lines[e["sid"]]) for e in self.evs
+                if ST.lookup(idx, e["stnm"], self.lines[e["sid"]]) is None}
+        self.assertEqual(miss, set())
+
+    def test_interpolation_error_leave_one_out(self):
+        by_seg = {}
+        for e in self.evs:
+            seg, i = P.seg_idx(e["stid"])
+            if i is not None and (e["stid"], i) not in by_seg.setdefault(seg, []):
+                by_seg[seg].append((e["stid"], i))
+        errs = []
+        for _k, run in P.runs_of(self.evs):
+            for j in range(1, len(run) - 1):
+                m = run[j]
+                if m["st"] != "1" or m["stid"] in (run[j - 1]["stid"], run[j + 1]["stid"]):
+                    continue
+                got = {a: t for a, t, d in P.passages_of_run([run[j - 1], run[j + 1]], by_seg, set()) if d == 0}
+                if m["stid"] in got:
+                    errs.append(abs((got[m["stid"]] - m["t"]).total_seconds()))
+        errs.sort()
+        self.assertGreater(len(errs), 300)
+        self.assertLessEqual(errs[len(errs) // 2], 30)  # 11-23 실측: 중간값 21초
+        self.assertLessEqual(errs[int(len(errs) * 0.9)], 90)  # 11-23 실측: 62초
 
 
 if __name__ == "__main__":

@@ -48,8 +48,11 @@ def build(settings, n_days=None):
         if st["좌표"] is None:
             xy = ST.lookup(index, name, line)
             st["좌표"] = list(xy) if xy else None
+        label = agg.direction_label(sid, updn, s["_terms"], stid)
+        if label == C.norm_name(name) + "행":
+            continue  # 종착역에서 '이 역행'(여기서 끝나는 열차)은 탈 수 없는 방향이라 뺀다
         st["노선"].setdefault(line, []).append({
-            "방면": agg.direction_label(sid, updn, s["_terms"]),
+            "방면": label,
             "배차_중간값_초": s["배차_중간값_초"],
             "배차_90_초": s["배차_90_초"],
             "시간당_열차": s["시간당_열차"],
@@ -59,6 +62,8 @@ def build(settings, n_days=None):
     out_st = []
     for name in sorted(by_name):
         st = by_name[name]
+        if not st["노선"]:
+            continue  # 종착 방향만 있던 역
         st["노선"] = [{"노선": ln, "방향": sorted(v, key=lambda x: x["방면"])} for ln, v in sorted(st["노선"].items())]
         out_st.append(st)
     out = {

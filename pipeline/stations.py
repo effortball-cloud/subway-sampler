@@ -45,6 +45,10 @@ def load():
     return C.read_json(PATH, {"rows": []})
 
 
+# 실시간 이름 → 역사마스터 이름(역 이름이 바뀌었는데 마스터가 옛 이름일 때)
+ALIAS = {"한국항공대": "화전"}
+
+
 def coord_index(master=None):
     """정규화한 역 이름 → [(노선, 위도, 경도), ...]"""
     master = master or load()
@@ -70,7 +74,8 @@ def _line_like(a, b):
 def lookup(index, name, line):
     """역 이름(+노선) → (위도, 경도) 또는 None.
     환승역은 노선마다 좌표가 조금 달라 평균을 쓰고, 이름은 같은데 서로 먼 역(5호선 양평·경의중앙 양평)은 노선으로 가린다."""
-    cands = index.get(C.norm_name(name), [])
+    n = C.norm_name(name)
+    cands = index.get(n) or index.get(ALIAS.get(n, ""), [])
     if not cands:
         return None
     first = (cands[0][1], cands[0][2])

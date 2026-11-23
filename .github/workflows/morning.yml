@@ -2,9 +2,15 @@
 # 켜는 법: Secrets 에 SEOUL_SUBWAY_KEY(실시간 지하철 키)만 넣으면 된다. 역 좌표는 config/station_master.json 에 들어 있음.
 # 공개 저장소면 Actions 시간이 무료(하루 약 140분 × 평일 22일). 비공개면 월 2,000분 무료라 모자람.
 name: morning-sample
+# 예약 실행은 몇 시간씩 늦게 뜰 수 있다(11-23 첫날: 06:40 예약이 10:56에 시작해 아침을 통째로 놓침).
+# 그래서 03:30부터 네 번 걸어 두고, 먼저 뜬 실행이 06:58까지 기다렸다가 수집한다(최대 3시간 28분 지연까지 버팀).
+# 나머지 예약은 같은 concurrency 그룹에서 대기하다가 뒤에 돌고, 이미 받은 칸·지난 칸은 건너뛰어 호출하지 않는다.
 on:
   schedule:
-    - cron: "40 21 * * 0-4"   # 평일 06:40 KST에 시작 → 06:58부터 4분마다 수집(예약 지연 18분까지 버팀)
+    - cron: "30 18 * * 0-4"   # 평일 03:30 KST
+    - cron: "40 19 * * 0-4"   # 04:40 KST
+    - cron: "40 20 * * 0-4"   # 05:40 KST
+    - cron: "40 21 * * 0-4"   # 06:40 KST
   workflow_dispatch:
     inputs:
       mode:
@@ -17,7 +23,7 @@ concurrency:
 jobs:
   sample:
     runs-on: ubuntu-latest
-    timeout-minutes: 170
+    timeout-minutes: 350   # 03:30 정시에 떠도 09:02 수집 + 정리까지 약 5시간 35분(작업 한도 6시간)
     permissions:
       contents: write
     env:
@@ -46,4 +52,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A data export
           git commit -m "아침 수집 $(TZ=Asia/Seoul date +%F)" || echo "바뀐 것 없음"
+          git pull --rebase -X theirs origin main || true
           git push

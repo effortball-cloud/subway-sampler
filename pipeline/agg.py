@@ -9,7 +9,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common as C  # noqa: E402
 from passages import headways, span_avg  # noqa: E402
 
+# 2호선 본선 순환 구간(역 ID 앞 7자리 1002000)만 내선·외선. 성수지선(1002002…)·신정지선은 종착역으로 부른다
 CIRCLE = {"1002": {"0": "내선순환", "1": "외선순환"}}
+CIRCLE_SEG = {"1002": "1002000"}
 
 
 def load_days(dates=None):
@@ -105,8 +107,8 @@ def station_dir_stats(days, window_hours=2.0):
     return out
 
 
-def direction_label(sid, updn, terms):
-    if sid in CIRCLE:
+def direction_label(sid, updn, terms, stid=""):
+    if sid in CIRCLE and (not stid or str(stid).startswith(CIRCLE_SEG[sid])):
         return CIRCLE[sid].get(updn, updn)
     top = sorted(terms.items(), key=lambda x: -x[1])
     if not top:

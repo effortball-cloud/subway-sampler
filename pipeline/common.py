@@ -154,7 +154,12 @@ def norm_name(name):
     """역 이름 맞추기: '서울역'·'서울' / '총신대입구(이수)' → '총신대입구'"""
     n = (name or "").strip()
     if "(" in n:
-        n = n.split("(")[0].strip()
+        n = n.split("(")[0].strip()  # '응암(하선-종착)' → '응암'
+    n = n.replace(" ", "")  # 실시간 '4.19 민주묘지' ↔ 역사마스터 '4.19민주묘지'
+    if n.endswith("종착") and len(n) > 3:
+        n = n[:-2]  # 실시간 '성수종착'(2호선 성수 종착 열차) → '성수'
+    if n.endswith("지선") and len(n) > 3:
+        n = n[:-2]  # 2호선 지선 열차의 종착 표시 '성수지선'·'신도림지선' → '성수'·'신도림'
     if n.endswith("역") and len(n) > 2:
         n = n[:-1]
     return n
